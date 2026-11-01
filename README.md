@@ -117,7 +117,7 @@ These are demonstration values, not field-calibrated control parameters. The sim
 4. Configure the BACnet client to use the simulator host IP and UDP port 47809.
 5. Verify device discovery, Object List, Present_Value reads, and Binary Output writes independently before integrating the SCADA client.
 
-**Development status:** this is an initial migrated implementation. BACnet discovery has been observed in the development environment, but ReadProperty interoperability with YABE remains under investigation. Do not treat successful discovery alone as proof that all BACnet services are working.
+**Validation status:** device discovery, I-Am, Object_List, ReadProperty, ReadPropertyMultiple (including the ALL property request), Present_Value reads and Binary Output writes have been exercised with YABE in the development environment. The simulator has also been integrated with the separate Web SCADA BACnet client. The combined SCADA test across Zones 02–05 was reported as successful. These are testbed results, not certification or proof of interoperability with every BACnet client.
 
 ## Repository structure
 
@@ -132,6 +132,10 @@ bacnet-device-simulator/
 ├── package.json
 └── README.md
 ```
+
+## Learning journal and engineering notes
+
+The [`docs/learning-journal.md`](docs/learning-journal.md) records the design decisions, BACnet concepts, commissioning procedure, observed test results, troubleshooting notes and future experiments. It is intended as a practical reference for this project and for other engineers learning BACnet/IP integration.
 
 ## License
 
