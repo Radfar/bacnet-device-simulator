@@ -134,6 +134,74 @@ client.on('readProperty', data => {
   client.readPropertyResponse(data.header.sender, data.invokeId, objectId, property, value);
 });
 
+// ReadPropertyMultiple returns one result entry per requested object.
+// Each entry contains the requested properties and their encoded application values.
+function readPropertyMultipleValue(objectId, property) {
+  const obj = objectFor(objectId);
+  if (!obj) {
+    return [{
+      type: AT.CONTEXT_SPECIFIC_DECODED,
+      value: {
+        type: 'BacnetError',
+        errorClass: Bacnet.enum.ErrorClass.OBJECT,
+        errorCode: Bacnet.enum.ErrorCode.UNKNOWN_OBJECT,
+      },
+    }];
+  }
+
+  const stored = obj[property.id];
+  if (!stored) {
+    return [{
+      type: AT.CONTEXT_SPECIFIC_DECODED,
+      value: {
+        type: 'BacnetError',
+        errorClass: Bacnet.enum.ErrorClass.PROPERTY,
+        errorCode: Bacnet.enum.ErrorCode.UNKNOWN_PROPERTY,
+      },
+    }];
+  }
+
+  const arrayAll = Bacnet.enum.ASN1_ARRAY_ALL;
+  if (property.index === undefined || property.index === arrayAll) return stored;
+
+  // BACnet array index 0 returns the array length; indexes 1..N are one-based.
+  if (property.index === 0) {
+    return [{ type: AT.UNSIGNED_INTEGER, value: stored.length }];
+  }
+  const item = stored[property.index - 1];
+  if (item === undefined) {
+    return [{
+      type: AT.CONTEXT_SPECIFIC_DECODED,
+      value: {
+        type: 'BacnetError',
+        errorClass: Bacnet.enum.ErrorClass.PROPERTY,
+        errorCode: Bacnet.enum.ErrorCode.INVALID_ARRAY_INDEX,
+      },
+    }];
+  }
+  return [item];
+}
+
+client.on('readPropertyMultiple', data => {
+  const requestedObjects = data.payload.properties || [];
+  console.log(
+    `[Zone05 DEBUG] ReadPropertyMultiple received: invokeId=${data.invokeId}, objects=${requestedObjects.length}, sender=${data.header.sender.address}`
+  );
+
+  const results = requestedObjects.map(({ objectId, properties = [] }) => ({
+    objectId,
+    values: properties.map(property => ({
+      property: { id: property.id, index: property.index },
+      value: readPropertyMultipleValue(objectId, property),
+    })),
+  }));
+
+  console.log(
+    `[Zone05 DEBUG] ReadPropertyMultiple response: invokeId=${data.invokeId}, objects=${results.length}, properties=${results.reduce((total, item) => total + item.values.length, 0)}`
+  );
+  client.readPropertyMultipleResponse(data.header.sender, data.invokeId, results);
+});
+
 function resolvedValue(entry) {
   for (let i = 0; i < 16; i++) {
     if (entry.slots[i].type !== AT.NULL) return Number(entry.slots[i].value);
