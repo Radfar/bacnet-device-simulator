@@ -267,7 +267,20 @@ client.on('writeProperty', data => {
       }
     }
     client.simpleAckResponse(data.header.sender, Bacnet.enum.ConfirmedServiceChoice.WRITE_PROPERTY, data.invokeId);
-    console.log(`[Zone05 BACnet] BO:${objectId.instance} ${entry.commandName} priority=${writePriority} ${relinquish ? 'relinquish' : 'value=' + next}`);
+    const commandLabel = {
+      auto: next ? 'AUTO mode' : 'MANUAL mode',
+      start: 'START request',
+      stop: 'STOP request',
+      faultreset: 'FAULT RESET request',
+    }[entry.commandName] || entry.commandName;
+    const commandState = next ? 'ACTIVE' : 'INACTIVE';
+    const processState = processModel.snapshot();
+    console.log(
+      `[Zone05 COMMAND] ${commandLabel} | BO:${objectId.instance} | ${commandState}${relinquish ? ' (priority relinquished)' : ''} | Priority: ${writePriority} | From: ${data.header.sender.address}`
+    );
+    console.log(
+      `[Zone05 PROCESS] Mode=${processState.mode} | Pump=${processState.pumpRunning ? 'RUNNING' : 'STOPPED'} | Flow=${processState.flow.toFixed(1)} gpm | Valve=${processState.valvePosition}% | Moisture=${processState.moisture.toFixed(1)}% | Tank=${processState.tankLevel.toFixed(1)}% | Fault=${processState.fault ? 'ACTIVE' : 'CLEAR'}`
+    );
   } catch (error) {
     // Restore the effective BACnet command state when the process rejects it.
     entry.slots[writePriority - 1] = { type: AT.NULL, value: null };
@@ -278,8 +291,40 @@ client.on('writeProperty', data => {
   }
 });
 
+let lastProcessLog = null;
+
+function logProcessTransitions(state) {
+  const current = {
+    mode: state.mode,
+    pumpRunning: state.pumpRunning,
+    fault: state.fault,
+    permissive: state.permissive,
+  };
+
+  if (!lastProcessLog) {
+    lastProcessLog = current;
+    return;
+  }
+
+  if (current.mode !== lastProcessLog.mode) {
+    console.log(`[Zone05 PROCESS] Operating mode changed: ${lastProcessLog.mode} -> ${current.mode}`);
+  }
+  if (current.pumpRunning !== lastProcessLog.pumpRunning) {
+    console.log(`[Zone05 PROCESS] Pump ${current.pumpRunning ? 'STARTED' : 'STOPPED'} | Flow=${state.flow.toFixed(1)} gpm | Valve=${state.valvePosition}%`);
+  }
+  if (current.fault !== lastProcessLog.fault) {
+    console.log(`[Zone05 ALARM] Fault ${current.fault ? 'ACTIVE' : 'CLEARED'}`);
+  }
+  if (current.permissive !== lastProcessLog.permissive) {
+    console.log(`[Zone05 PROCESS] Start permissive: ${current.permissive ? 'AVAILABLE' : 'NOT AVAILABLE'}`);
+  }
+
+  lastProcessLog = current;
+}
+
 function syncObjects() {
   const state = processModel.tick();
+  logProcessTransitions(state);
   const set = (type, instance, value) => {
     db[type][instance][PV][0].value = value;
   };
@@ -294,8 +339,19 @@ function syncObjects() {
 syncObjects();
 const timer = setInterval(syncObjects, TICK_MS);
 
-console.log(`[Zone05 BACnet] Device ${DEVICE_INSTANCE} listening on ${BACNET_INTERFACE}:${BACNET_PORT}/UDP`);
-console.log('[Zone05 BACnet] Independent process simulation started');
+console.log('');
+console.log('============================================================');
+console.log(' ZONE 05 | BACnet/IP IRRIGATION DEVICE SIMULATOR');
+console.log('============================================================');
+console.log(` Device instance : ${DEVICE_INSTANCE}`);
+console.log(` UDP endpoint    : ${BACNET_INTERFACE}:${BACNET_PORT}`);
+console.log(` Vendor ID       : ${VENDOR_ID}`);
+console.log(` Process update  : every ${TICK_MS} ms`);
+console.log('------------------------------------------------------------');
+console.log('[READY] Waiting for BACnet Who-Is, ReadProperty, RPM and WriteProperty requests');
+console.log('[INFO] Command writes and process-state transitions will be shown below.');
+console.log('============================================================');
+console.log('');
 console.log('[Zone05 DEBUG] Listener counts:', {
   whoIs: client.listenerCount('whoIs'),
   readProperty: client.listenerCount('readProperty'),
