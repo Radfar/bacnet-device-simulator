@@ -1,18 +1,22 @@
 {
   "name": "bacnet-device-simulator",
   "version": "0.1.0",
-  "description": "Independent BACnet/IP device simulator for industrial and building automation testbeds.",
+  "description": "Independent BACnet/IP irrigation device simulator for industrial and building automation testbeds.",
   "main": "src/device.js",
   "type": "commonjs",
   "scripts": {
     "start": "node src/device.js"
   },
   "keywords": [
-    "BACnet",
-    "BACnet-IP",
+    "bacnet",
+    "bacnet-ip",
     "building-automation",
     "industrial-automation",
-    "device-simulator"
+    "scada",
+    "device-simulator",
+    "nodejs",
+    "irrigation",
+    "protocol-testing"
   ],
   "author": "Alireza",
   "license": "MIT",
