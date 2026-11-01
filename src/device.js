@@ -187,6 +187,10 @@ client.on('readPropertyMultiple', data => {
   console.log(
     `[Zone05 DEBUG] ReadPropertyMultiple received: invokeId=${data.invokeId}, objects=${requestedObjects.length}, sender=${data.header.sender.address}`
   );
+  console.dir(requestedObjects.map(({ objectId, properties = [] }) => ({
+    objectId,
+    properties: properties.map(({ id, index }) => ({ id, name: Bacnet.enum.getEnumName(Bacnet.enum.PropertyIdentifier, id), index })),
+  })), { depth: null });
 
   const results = requestedObjects.map(({ objectId, properties = [] }) => ({
     objectId,
