@@ -135,7 +135,8 @@ client.on('readProperty', data => {
 });
 
 // ReadPropertyMultiple returns one result entry per requested object.
-// Each entry contains the requested properties and their encoded application values.
+// BACnet property ALL (8) is a request modifier: expand it into the object's
+// individual properties rather than looking up property ID 8 in the object map.
 function readPropertyMultipleValue(objectId, property) {
   const obj = objectFor(objectId);
   if (!obj) {
@@ -182,6 +183,24 @@ function readPropertyMultipleValue(objectId, property) {
   return [item];
 }
 
+function readPropertyMultipleEntries(objectId, requestedProperty) {
+  const obj = objectFor(objectId);
+  const allPropertyId = Bacnet.enum.PropertyIdentifier.ALL;
+  const arrayAll = Bacnet.enum.ASN1_ARRAY_ALL;
+
+  if (requestedProperty.id === allPropertyId && obj) {
+    return Object.entries(obj).map(([propertyId, stored]) => ({
+      property: { id: Number(propertyId), index: arrayAll },
+      value: stored,
+    }));
+  }
+
+  return [{
+    property: { id: requestedProperty.id, index: requestedProperty.index },
+    value: readPropertyMultipleValue(objectId, requestedProperty),
+  }];
+}
+
 client.on('readPropertyMultiple', data => {
   const requestedObjects = data.payload.properties || [];
   console.log(
@@ -194,10 +213,7 @@ client.on('readPropertyMultiple', data => {
 
   const results = requestedObjects.map(({ objectId, properties = [] }) => ({
     objectId,
-    values: properties.map(property => ({
-      property: { id: property.id, index: property.index },
-      value: readPropertyMultipleValue(objectId, property),
-    })),
+    values: properties.flatMap(property => readPropertyMultipleEntries(objectId, property)),
   }));
 
   console.log(
