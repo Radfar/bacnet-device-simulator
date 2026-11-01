@@ -95,12 +95,7 @@ function sendError(data, service, errorClass, errorCode) {
 
 // Capture requests that node-bacnet decodes but cannot route to a registered service listener.
 client.on('unhandledEvent', data => {
-  console.error('[Zone05 DEBUG] Unhandled BACnet service:', {
-    service: data.service,
-    invokeId: data.invokeId,
-    sender: data.header?.sender?.address,
-    payload: data.payload,
-  });
+
 });
 
 client.on('whoIs', data => {
@@ -112,11 +107,6 @@ client.on('whoIs', data => {
 // These handlers follow the same event/response API used by the existing Zone 03 gateway.
 client.on('readProperty', data => {
   const { objectId, property } = data.payload;
-
-  // Diagnostic: confirms that node-bacnet dispatched the confirmed service to this handler.
-  console.log(
-    `[Zone05 DEBUG] ReadProperty received: objectType=${objectId.type}, instance=${objectId.instance}, propertyId=${property.id}, invokeId=${data.invokeId}, sender=${data.header.sender.address}`
-  );
 
   const obj = objectFor(objectId);
   if (!obj) {
@@ -130,7 +120,6 @@ client.on('readProperty', data => {
   }
 
   const value = obj[property.id];
-  console.log(`[Zone05 DEBUG] ReadProperty response: objectType=${objectId.type}, instance=${objectId.instance}, propertyId=${property.id}, values=${value.length}`);
   client.readPropertyResponse(data.header.sender, data.invokeId, objectId, property, value);
 });
 
@@ -203,22 +192,11 @@ function readPropertyMultipleEntries(objectId, requestedProperty) {
 
 client.on('readPropertyMultiple', data => {
   const requestedObjects = data.payload.properties || [];
-  console.log(
-    `[Zone05 DEBUG] ReadPropertyMultiple received: invokeId=${data.invokeId}, objects=${requestedObjects.length}, sender=${data.header.sender.address}`
-  );
-  console.dir(requestedObjects.map(({ objectId, properties = [] }) => ({
-    objectId,
-    properties: properties.map(({ id, index }) => ({ id, name: Bacnet.enum.getEnumName(Bacnet.enum.PropertyIdentifier, id), index })),
-  })), { depth: null });
-
   const results = requestedObjects.map(({ objectId, properties = [] }) => ({
     objectId,
     values: properties.flatMap(property => readPropertyMultipleEntries(objectId, property)),
   }));
 
-  console.log(
-    `[Zone05 DEBUG] ReadPropertyMultiple response: invokeId=${data.invokeId}, objects=${results.length}, properties=${results.reduce((total, item) => total + item.values.length, 0)}`
-  );
   client.readPropertyMultipleResponse(data.header.sender, data.invokeId, results);
 });
 
@@ -352,13 +330,6 @@ console.log('[READY] Waiting for BACnet Who-Is, ReadProperty, RPM and WritePrope
 console.log('[INFO] Command writes and process-state transitions will be shown below.');
 console.log('============================================================');
 console.log('');
-console.log('[Zone05 DEBUG] Listener counts:', {
-  whoIs: client.listenerCount('whoIs'),
-  readProperty: client.listenerCount('readProperty'),
-  readPropertyMultiple: client.listenerCount('readPropertyMultiple'),
-  writeProperty: client.listenerCount('writeProperty'),
-  unhandledEvent: client.listenerCount('unhandledEvent'),
-});
 
 function shutdown() {
   clearInterval(timer);
