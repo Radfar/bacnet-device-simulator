@@ -279,6 +279,7 @@ console.log('[Zone05 BACnet] Independent process simulation started');
 console.log('[Zone05 DEBUG] Listener counts:', {
   whoIs: client.listenerCount('whoIs'),
   readProperty: client.listenerCount('readProperty'),
+  readPropertyMultiple: client.listenerCount('readPropertyMultiple'),
   writeProperty: client.listenerCount('writeProperty'),
   unhandledEvent: client.listenerCount('unhandledEvent'),
 });
